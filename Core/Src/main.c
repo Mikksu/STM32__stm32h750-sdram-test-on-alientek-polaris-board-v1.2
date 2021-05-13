@@ -71,17 +71,19 @@ static uint32_t * const testsram = (uint32_t *) (Bank5_SDRAM_ADDR);
 #define SDRAM_TOTAL_UNIT		(SDRAM_TOTAL_BITS / SDRAM_D_WIDTH)
 //#define SDRAM_TOTAL_UNIT		(2 ^ 13)      // The total storage unit per table.
 
-#define SRAM_64K           (64 * 1024)
-static uint32_t sramBuff[SRAM_64K];
+#define SRAM_64K_WD           (64 * 1024)
+static uint32_t sramBuff[SRAM_64K_WD];
+
+
 static void dmaTest(void)
 {
   int i = 0;
   HAL_StatusTypeDef status;
 
-  for(i = 0; i < SRAM_64K; i++)
+  for(i = 0; i < SRAM_64K_WD; i++)
     sramBuff[i] = i;
 
-  status = HAL_DMA_Start(&hdma_memtomem_dma1_stream0, (uint32_t)&sramBuff, Bank5_SDRAM_ADDR, SRAM_64K);
+  status = HAL_DMA_Start(&hdma_memtomem_dma1_stream0, (uint32_t)&sramBuff, Bank5_SDRAM_ADDR, SRAM_64K_WD);
   if(status == HAL_OK)
     printf("DMA Transfer to SDRAM finished!\r\n");
   else
@@ -93,14 +95,14 @@ static void dmaTest(void)
     uint32_t *p = (uint32_t*)Bank5_SDRAM_ADDR;
     uint32_t temp;
 
-    for(i = 0; i < SRAM_64K; i++)
+    for(i = 0; i < SRAM_64K_WD; i++)
     {
       temp = *p++;
       if(temp != i)
         break;
     }
 
-    if(i != SRAM_64K - 1)
+    if(i != SRAM_64K_WD - 1)
       printf("Data error in position %d\r\n", i);
     else
       printf("Data validation passed\r\n");
@@ -172,7 +174,11 @@ static void WriteSpeedTest(void)
 		}
 	}
 }
-  
+
+/**
+ * @brief           Write the full SDRAM and read back to validate.
+ * 
+ */
 void fmc_sdram_test(void)
 {  
   float wr_cost = 0, rd_cost = 0;
@@ -207,7 +213,7 @@ void fmc_sdram_test(void)
  	for(i = 0; i < SDRAM_TOTAL_UNIT; i++)
 	{	
 		temp = *pram++;
-		if(i==0)
+		if(i == 0)
 			sval = temp;
  		else if(temp <= sval)
 			break;
@@ -317,9 +323,12 @@ void SystemClock_Config(void)
   HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY);
   /** Configure the main internal regulator output voltage
   */
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
 
   while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
+  /** Macro to configure the PLL clock source
+  */
+  __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
@@ -330,7 +339,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLM = 10;
   RCC_OscInitStruct.PLL.PLLN = 384;
   RCC_OscInitStruct.PLL.PLLP = 2;
-  RCC_OscInitStruct.PLL.PLLQ = 6;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
   RCC_OscInitStruct.PLL.PLLR = 2;
   RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_1;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
@@ -352,7 +361,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
   {
     Error_Handler();
   }
