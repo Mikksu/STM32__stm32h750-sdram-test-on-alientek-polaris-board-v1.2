@@ -20,6 +20,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "dma.h"
+#include "mdma.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -71,23 +72,48 @@ static uint32_t * const testsram = (uint32_t *) (Bank5_SDRAM_ADDR);
 #define SDRAM_TOTAL_UNIT		(SDRAM_TOTAL_BITS / SDRAM_D_WIDTH)
 //#define SDRAM_TOTAL_UNIT		(2 ^ 13)      // The total storage unit per table.
 
-#define SRAM_64K_WD           (64 * 1024)
-static uint32_t sramBuff[SRAM_64K_WD];
+static void fillSdram(void)
+{
+  uint32_t* pram = (uint32_t*)(Bank5_SDRAM_ADDR);
+	for(int i = 0; i < SDRAM_TOTAL_UNIT; i++)
+	{
+		*pram++ = 0x5A5A5A5A;
+	}
+}
+
+
+#define SRAM_WD_BLOCK_SIZE           (16 * 1024)
+#define SRAM_TOTAL_PAGE               (SDRAM_TOTAL_UNIT / SRAM_WD_BLOCK_SIZE)
+
+static uint32_t sramBuff[SRAM_WD_BLOCK_SIZE];
 
 
 static void dmaTest(void)
 {
-  int i = 0;
+  int i = 0, page = 0;
   HAL_StatusTypeDef status;
 
-  for(i = 0; i < SRAM_64K_WD; i++)
-    sramBuff[i] = i;
+  // fill the whole SDRAM with pattern 0x5A5A5A5A.
+  fillSdram();
 
-  status = HAL_DMA_Start(&hdma_memtomem_dma1_stream0, (uint32_t)&sramBuff, Bank5_SDRAM_ADDR, SRAM_64K_WD);
-  if(status == HAL_OK)
-    printf("DMA Transfer to SDRAM finished!\r\n");
-  else
-    printf("DMA Transfer to SDRAM failed!\r\n");
+  for(page = 0; page < SRAM_TOTAL_PAGE; page++)
+  {
+    for(i = 0; i < SRAM_WD_BLOCK_SIZE; i++)
+    {
+      sramBuff[i] = (page * SRAM_WD_BLOCK_SIZE) + i;
+    }
+
+    status = HAL_DMA_Start(&hdma_memtomem_dma1_stream0, (uint32_t)(sramBuff), Bank5_SDRAM_ADDR + (SRAM_WD_BLOCK_SIZE * page * 4) + 4, (SRAM_WD_BLOCK_SIZE * 4) - 1);
+    status = HAL_DMA_PollForTransfer(&hdma_memtomem_dma1_stream0, HAL_DMA_FULL_TRANSFER, HAL_MAX_DELAY);
+
+    //status = HAL_MDMA_Start(&hmdma_mdma_channel40_sw_0, (uint32_t)sramBuff, Bank5_SDRAM_ADDR, 128, 1);
+    //status = HAL_MDMA_PollForTransfer(&hmdma_mdma_channel40_sw_0, HAL_MDMA_FULL_TRANSFER, HAL_MAX_DELAY);
+    if(status == HAL_OK)
+      printf("DMA Transfer to SDRAM finished!\r\n");
+    else
+      printf("DMA Transfer to SDRAM failed!\r\n");
+
+  }
 
   // validate the data in the SDRAM
   if(status == HAL_OK)
@@ -95,19 +121,17 @@ static void dmaTest(void)
     uint32_t *p = (uint32_t*)Bank5_SDRAM_ADDR;
     uint32_t temp;
 
-    for(i = 0; i < SRAM_64K_WD; i++)
+    for(i = 0; i < SRAM_WD_BLOCK_SIZE; i++)
     {
       temp = *p++;
       if(temp != i)
         break;
     }
 
-    if(i != SRAM_64K_WD - 1)
+    if(i != SRAM_WD_BLOCK_SIZE - 1)
       printf("Data error in position %d\r\n", i);
     else
       printf("Data validation passed\r\n");
-
-    HAL_DMA_Abort(&hdma_memtomem_dma1_stream0);
   }
 }
 
@@ -186,7 +210,8 @@ void fmc_sdram_test(void)
 	uint32_t i = 0;  	  
 	uint32_t temp = 0;	   
 	uint32_t sval = 0;		
-	
+
+  fillSdram();
 
   /*************** WRITE **********************/
 	htim2.Instance->CNT = 0;
@@ -209,6 +234,7 @@ void fmc_sdram_test(void)
   htim2.Instance->CNT = 0;
 	HAL_TIM_Base_Start(&htim2);
 
+
 	pram = (uint32_t*)(Bank5_SDRAM_ADDR);
  	for(i = 0; i < SDRAM_TOTAL_UNIT; i++)
 	{	
@@ -218,6 +244,25 @@ void fmc_sdram_test(void)
  		else if(temp <= sval)
 			break;
 	}
+  
+
+	/*
+  status = HAL_DMA_Start(&hdma_memtomem_dma1_stream0, Bank5_SDRAM_ADDR, (uint32_t)sramBuff, SRAM_WD_BLOCK_SIZE);
+  status = HAL_DMA_PollForTransfer(&hdma_memtomem_dma1_stream0, HAL_DMA_FULL_TRANSFER, HAL_MAX_DELAY);
+  pram = sramBuff;
+
+ 	for(i = 0; i < SDRAM_TOTAL_UNIT; i++)
+	{	
+		temp = *pram++;
+		if(i == 0)
+			sval = temp;
+ 		else if(temp <= sval)
+			break;
+	}
+
+  HAL_DMA_Abort(&hdma_memtomem_dma1_stream0);
+
+  */
 	
   htim2.Instance->CR1 &= 0;
   HAL_TIM_Base_Stop(&htim2);
@@ -253,10 +298,10 @@ int main(void)
   /* USER CODE END 1 */
 
   /* Enable I-Cache---------------------------------------------------------*/
-  SCB_EnableICache();
+  //SCB_EnableICache();
 
   /* Enable D-Cache---------------------------------------------------------*/
-  SCB_EnableDCache();
+  //SCB_EnableDCache();
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -277,6 +322,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
+  MX_MDMA_Init();
   MX_FMC_Init();
   MX_USART1_UART_Init();
   MX_TIM2_Init();
@@ -294,9 +340,9 @@ int main(void)
   while (1)
   {
 
-		fmc_sdram_test();
+		//fmc_sdram_test();
 		//WriteSpeedTest();
-		//dmaTest();
+		dmaTest();
 
 		
 		//HAL_Delay(1000);
