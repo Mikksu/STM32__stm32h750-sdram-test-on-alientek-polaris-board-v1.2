@@ -69,6 +69,7 @@ static uint32_t * const testsram = (uint32_t *) (Bank5_SDRAM_ADDR);
 #define SDRAM_BANK          (4)
 #define SDRAM_TOTAL_BITS    (SDRAM_M_UNIT * SDRAM_D_WIDTH * SDRAM_BANK)
 #define SDRAM_TOTAL_UNIT		(SDRAM_TOTAL_BITS / SDRAM_D_WIDTH)
+//#define SDRAM_TOTAL_UNIT		(2 ^ 13)      // The total storage unit per table.
 
 #define SRAM_64K           (64 * 1024)
 static uint32_t sramBuff[SRAM_64K];
@@ -174,16 +175,34 @@ static void WriteSpeedTest(void)
   
 void fmc_sdram_test(void)
 {  
+  float wr_cost = 0, rd_cost = 0;
+
 	uint32_t i = 0;  	  
 	uint32_t temp = 0;	   
 	uint32_t sval = 0;		
 	
+
+  /*************** WRITE **********************/
+	htim2.Instance->CNT = 0;
+	HAL_TIM_Base_Start(&htim2);
+
 	uint32_t* pram = (uint32_t*)(Bank5_SDRAM_ADDR);
 	for(i = 0; i < SDRAM_TOTAL_UNIT; i++)
 	{
 		*pram++ = temp++;
 	}
 	
+  htim2.Instance->CR1 &= 0;
+  HAL_TIM_Base_Stop(&htim2);
+  wr_cost = (float)htim2.Instance->CNT;
+
+  /*************** WRITE END **********************/
+
+
+  /*************** READ **********************/
+  htim2.Instance->CNT = 0;
+	HAL_TIM_Base_Start(&htim2);
+
 	pram = (uint32_t*)(Bank5_SDRAM_ADDR);
  	for(i = 0; i < SDRAM_TOTAL_UNIT; i++)
 	{	
@@ -194,10 +213,19 @@ void fmc_sdram_test(void)
 			break;
 	}
 	
-	uint32_t totalWords = (uint32_t)(temp - sval + 1);
-	uint32_t totalBytes = totalWords * sizeof(uint32_t);
+  htim2.Instance->CR1 &= 0;
+  HAL_TIM_Base_Stop(&htim2);
+  rd_cost = (float)htim2.Instance->CNT;
+  
+
+  /*************** READ END **********************/
+
+	float totalWords = (uint32_t)(temp - sval + 1);
+	float totalBytes = totalWords * sizeof(uint32_t);
 	
-	printf("SDRAM Capacity:%dMB\r\n",(totalBytes / SDRAM_1M));
+	printf("SDRAM Capacity:%.3fMB\r\n",(totalBytes / SDRAM_1M));
+  printf("WRITE cost: %.3fms; speed: %.1f MB/s\r\n", wr_cost / 1000, (totalBytes / SDRAM_1M) / (wr_cost / 1000000));
+  printf("READ cost: %.3fms; speed: %.1f MB/s\r\n", rd_cost / 1000, (totalBytes / SDRAM_1M) / (rd_cost / 1000000));
  				 
 }
 
@@ -210,7 +238,7 @@ void fmc_sdram_test(void)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	uint32_t cost_ticks;
+	float cost_ms;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -239,7 +267,7 @@ int main(void)
 
   uint32_t sysClk =  HAL_RCC_GetSysClockFreq();
 	printf("STM32H750 .....\r\n");
-  printf("CPU Clock Freq.: %d\r\n", sysClk);
+  printf("CPU Clock Freq.: %dMHz\r\n", sysClk / 1000000);
 	
 	DWT_ENABLE();
   /* USER CODE END 2 */
@@ -249,17 +277,10 @@ int main(void)
   while (1)
   {
 
-    htim2.Instance->CNT = 0;
-    HAL_TIM_Base_Start(&htim2);
-
 		fmc_sdram_test();
 		//WriteSpeedTest();
 		//dmaTest();
 
-		htim2.Instance->CR1 &= 0;
-    HAL_TIM_Base_Stop(&htim2);
-		cost_ticks = htim2.Instance->CNT;
-		printf("W/R Time cost: %dus\r\n", cost_ticks);
 		
 		//HAL_Delay(1000);
 		HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
@@ -296,7 +317,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 10;
-  RCC_OscInitStruct.PLL.PLLN = 384;
+  RCC_OscInitStruct.PLL.PLLN = 320;
   RCC_OscInitStruct.PLL.PLLP = 2;
   RCC_OscInitStruct.PLL.PLLQ = 6;
   RCC_OscInitStruct.PLL.PLLR = 2;
