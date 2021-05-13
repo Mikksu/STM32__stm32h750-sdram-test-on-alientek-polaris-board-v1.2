@@ -1,4 +1,7 @@
 #MicroXplorer Configuration settings - do not modify
+CORTEX_M7.CPU_DCache=Enabled
+CORTEX_M7.CPU_ICache=Enabled
+CORTEX_M7.IPParameters=CPU_ICache,CPU_DCache
 Dma.MEMTOMEM.0.Direction=DMA_MEMORY_TO_MEMORY
 Dma.MEMTOMEM.0.EventEnable=DISABLE
 Dma.MEMTOMEM.0.FIFOMode=DMA_FIFOMODE_ENABLE
@@ -440,7 +443,7 @@ SH.FMC_SDNWE.ConfNb=1
 TIM2.AutoReloadPreload=TIM_AUTORELOAD_PRELOAD_DISABLE
 TIM2.IPParameters=Period,Prescaler,AutoReloadPreload
 TIM2.Period=4294967295
-TIM2.Prescaler=119
+TIM2.Prescaler=239
 USART1.BaudRate=921600
 USART1.IPParameters=VirtualMode-Asynchronous,BaudRate
 USART1.VirtualMode-Asynchronous=VM_ASYNC
