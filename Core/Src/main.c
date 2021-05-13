@@ -223,9 +223,14 @@ void fmc_sdram_test(void)
 	float totalWords = (uint32_t)(temp - sval + 1);
 	float totalBytes = totalWords * sizeof(uint32_t);
 	
+  printf("Total bytes written: %.0f, total words written: %.0f\r\n", totalBytes, totalWords);
 	printf("SDRAM Capacity:%.3fMB\r\n",(totalBytes / SDRAM_1M));
-  printf("WRITE cost: %.3fms; speed: %.1f MB/s\r\n", wr_cost / 1000, (totalBytes / SDRAM_1M) / (wr_cost / 1000000));
-  printf("READ cost: %.3fms; speed: %.1f MB/s\r\n", rd_cost / 1000, (totalBytes / SDRAM_1M) / (rd_cost / 1000000));
+
+	float sysClk = HAL_RCC_GetSysClockFreq();
+  float wr_t_s =  wr_cost * (1 / sysClk * 2);
+  float rd_t_s =  rd_cost * (1 / sysClk * 2);
+  printf("WRITE cost: %.3fms; speed: %.1f MB/s\r\n", wr_t_s * 1000, (totalBytes / SDRAM_1M) / wr_t_s);
+  printf("READ cost: %.3fms; speed: %.1f MB/s\r\n", rd_t_s * 1000, (totalBytes / SDRAM_1M) / rd_t_s);
  				 
 }
 
