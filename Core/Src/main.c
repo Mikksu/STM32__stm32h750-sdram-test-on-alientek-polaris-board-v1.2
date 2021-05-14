@@ -227,9 +227,10 @@ void fmc_sdram_test(void)
 {  
   float wr_cost = 0, rd_cost = 0;
 
-	uint32_t i = 0;  	  
-	uint32_t temp = 0;	   
-	uint32_t sval = 0;		
+	uint32_t i = 0;
+	uint32_t temp = 0, temp_ll = 0;
+	uint32_t sval = 0;
+	int succeed = 1;
 
 	printf("Filling the SDRAM with the pattern code...\r\n");
   fillSdram();
@@ -261,23 +262,35 @@ void fmc_sdram_test(void)
   htim2.Instance->CNT = 0;
 	HAL_TIM_Base_Start(&htim2);
 
-
 	pram = (uint32_t*)(Bank5_SDRAM_ADDR);
  	for(i = 0; i < SDRAM_TOTAL_UNIT; i++)
 	{	
 		temp = *pram++;
 		if(i == 0)
 			sval = temp;
- 		else if(temp <= sval)
+ 		else if(temp - temp_ll != 1)
+ 		{
+ 		  succeed = 0;
 			break;
+ 		}
+ 		else
+ 		 temp_ll = temp;
 	}
 	
   htim2.Instance->CR1 &= 0;
   HAL_TIM_Base_Stop(&htim2);
   rd_cost = (float)htim2.Instance->CNT;
   
-  float rd_t_s =  rd_cost * (1 / sysClk * 2);
-  printf("READ cost: %.3fms; speed: %.1f MB/s\r\n", rd_t_s * 1000, (SDRAM_TOTAL_UNIT * 4 / SDRAM_1M) / rd_t_s);
+  if(succeed)
+  {
+    float rd_t_s =  rd_cost * (1 / sysClk * 2);
+    printf("READ cost: %.3fms; speed: %.1f MB/s\r\n", rd_t_s * 1000, (SDRAM_TOTAL_UNIT * 4 / SDRAM_1M) / rd_t_s);
+  }
+  else
+  {
+    printf("Reading Error at position %d!\r\n", i);
+  }
+
 
 
   /*************** READ END **********************/
@@ -286,9 +299,9 @@ void fmc_sdram_test(void)
   float totalBytes = totalWords * sizeof(uint32_t);
 	printf("SDRAM Capacity:%.3fMB\r\n",(totalBytes / SDRAM_1M));
 
+	printf("\r\n");
 
-
- 				 
+	HAL_Delay(1000);
 }
 
 /* USER CODE END 0 */
@@ -302,6 +315,12 @@ int main(void)
   /* USER CODE BEGIN 1 */
 	float cost_ms;
   /* USER CODE END 1 */
+
+  /* Enable I-Cache---------------------------------------------------------*/
+  SCB_EnableICache();
+
+  /* Enable D-Cache---------------------------------------------------------*/
+  SCB_EnableDCache();
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -369,9 +388,12 @@ void SystemClock_Config(void)
   HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY);
   /** Configure the main internal regulator output voltage
   */
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
 
   while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
+  /** Macro to configure the PLL clock source
+  */
+  __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
@@ -404,7 +426,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
   {
     Error_Handler();
   }
