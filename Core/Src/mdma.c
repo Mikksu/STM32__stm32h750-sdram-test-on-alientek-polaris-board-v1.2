@@ -49,7 +49,7 @@ void MX_MDMA_Init(void)
   /* Configure MDMA request hmdma_mdma_channel40_sw_0 on MDMA_Channel0 */
   hmdma_mdma_channel40_sw_0.Instance = MDMA_Channel0;
   hmdma_mdma_channel40_sw_0.Init.Request = MDMA_REQUEST_SW;
-  hmdma_mdma_channel40_sw_0.Init.TransferTriggerMode = MDMA_BUFFER_TRANSFER;
+  hmdma_mdma_channel40_sw_0.Init.TransferTriggerMode = MDMA_BLOCK_TRANSFER;
   hmdma_mdma_channel40_sw_0.Init.Priority = MDMA_PRIORITY_LOW;
   hmdma_mdma_channel40_sw_0.Init.Endianness = MDMA_LITTLE_ENDIANNESS_PRESERVE;
   hmdma_mdma_channel40_sw_0.Init.SourceInc = MDMA_SRC_INC_WORD;

@@ -72,12 +72,15 @@ static uint32_t * const testsram = (uint32_t *) (Bank5_SDRAM_ADDR);
 #define SDRAM_TOTAL_UNIT		(SDRAM_TOTAL_BITS / SDRAM_D_WIDTH)
 //#define SDRAM_TOTAL_UNIT		(2 ^ 13)      // The total storage unit per table.
 
+/**
+ * Fill the SDRAM with the pattern 0xA244250F.
+ */
 static void fillSdram(void)
 {
   uint32_t* pram = (uint32_t*)(Bank5_SDRAM_ADDR);
 	for(int i = 0; i < SDRAM_TOTAL_UNIT; i++)
 	{
-		*pram++ = 0x5A5A5A5A;
+		*pram++ = 0xA244250F;
 	}
 }
 
@@ -96,14 +99,31 @@ static void dmaTest(void)
   // fill the whole SDRAM with pattern 0x5A5A5A5A.
   fillSdram();
 
+  uint8_t *p;
   for(page = 0; page < SRAM_TOTAL_PAGE; page++)
   {
     for(i = 0; i < SRAM_WD_BLOCK_SIZE; i++)
     {
-      sramBuff[i] = 0xA244250F;//(page * SRAM_WD_BLOCK_SIZE) + i;
+      p = (uint8_t*)&sramBuff[i];
+
+      *p++ = i * 4;
+      *p++ = i * 4 + 1;
+      *p++ = i * 4 + 2;
+      *p++ = i * 4 + 3;
+      //sramBuff[i] =  + i;//(page * SRAM_WD_BLOCK_SIZE) + i;
     }
 
-    status = HAL_DMA_Start(&hdma_memtomem_dma1_stream0, (uint32_t)(sramBuff), Bank5_SDRAM_ADDR, 1);
+
+    uint32_t* p32 = Bank5_SDRAM_ADDR;
+    *p32 = 0xA244250F;
+    *p32 = 0xA244250F;
+    *p32 = 0xA244250F;
+    *p32 = 0xA244250F;
+    *p32 = 0xA244250F;
+    *p32 = 0xA244250F;
+    *p32 = 0xA244250F;
+
+    status = HAL_DMA_Start(&hdma_memtomem_dma1_stream0, (uint32_t)(sramBuff), Bank5_SDRAM_ADDR, 16);
     status = HAL_DMA_PollForTransfer(&hdma_memtomem_dma1_stream0, HAL_DMA_FULL_TRANSFER, HAL_MAX_DELAY);
 
     //status = HAL_MDMA_Start(&hmdma_mdma_channel40_sw_0, (uint32_t)sramBuff, Bank5_SDRAM_ADDR, 128, 1);
@@ -211,7 +231,11 @@ void fmc_sdram_test(void)
 	uint32_t temp = 0;	   
 	uint32_t sval = 0;		
 
+	printf("Filling the SDRAM with the pattern code...\r\n");
   fillSdram();
+
+  float sysClk = HAL_RCC_GetSysClockFreq();
+  printf("Total bytes written: %.0f, total words written: %.0f\r\n", (float)SDRAM_TOTAL_UNIT * 4, (float)SDRAM_TOTAL_UNIT);
 
   /*************** WRITE **********************/
 	htim2.Instance->CNT = 0;
@@ -226,6 +250,9 @@ void fmc_sdram_test(void)
   htim2.Instance->CR1 &= 0;
   HAL_TIM_Base_Stop(&htim2);
   wr_cost = (float)htim2.Instance->CNT;
+
+  float wr_t_s =  wr_cost * (1 / sysClk * 2);
+  printf("WRITE cost: %.3fms; speed: %.1f MB/s\r\n", wr_t_s * 1000, (float)(SDRAM_TOTAL_UNIT * 4 / SDRAM_1M) / wr_t_s);
 
   /*************** WRITE END **********************/
 
@@ -244,44 +271,23 @@ void fmc_sdram_test(void)
  		else if(temp <= sval)
 			break;
 	}
-  
-
-	/*
-  status = HAL_DMA_Start(&hdma_memtomem_dma1_stream0, Bank5_SDRAM_ADDR, (uint32_t)sramBuff, SRAM_WD_BLOCK_SIZE);
-  status = HAL_DMA_PollForTransfer(&hdma_memtomem_dma1_stream0, HAL_DMA_FULL_TRANSFER, HAL_MAX_DELAY);
-  pram = sramBuff;
-
- 	for(i = 0; i < SDRAM_TOTAL_UNIT; i++)
-	{	
-		temp = *pram++;
-		if(i == 0)
-			sval = temp;
- 		else if(temp <= sval)
-			break;
-	}
-
-  HAL_DMA_Abort(&hdma_memtomem_dma1_stream0);
-
-  */
 	
   htim2.Instance->CR1 &= 0;
   HAL_TIM_Base_Stop(&htim2);
   rd_cost = (float)htim2.Instance->CNT;
   
+  float rd_t_s =  rd_cost * (1 / sysClk * 2);
+  printf("READ cost: %.3fms; speed: %.1f MB/s\r\n", rd_t_s * 1000, (SDRAM_TOTAL_UNIT * 4 / SDRAM_1M) / rd_t_s);
+
 
   /*************** READ END **********************/
 
-	float totalWords = (uint32_t)(temp - sval + 1);
-	float totalBytes = totalWords * sizeof(uint32_t);
-	
-  printf("Total bytes written: %.0f, total words written: %.0f\r\n", totalBytes, totalWords);
+  float totalWords = (uint32_t)(temp - sval + 1);
+  float totalBytes = totalWords * sizeof(uint32_t);
 	printf("SDRAM Capacity:%.3fMB\r\n",(totalBytes / SDRAM_1M));
 
-	float sysClk = HAL_RCC_GetSysClockFreq();
-  float wr_t_s =  wr_cost * (1 / sysClk * 2);
-  float rd_t_s =  rd_cost * (1 / sysClk * 2);
-  printf("WRITE cost: %.3fms; speed: %.1f MB/s\r\n", wr_t_s * 1000, (totalBytes / SDRAM_1M) / wr_t_s);
-  printf("READ cost: %.3fms; speed: %.1f MB/s\r\n", rd_t_s * 1000, (totalBytes / SDRAM_1M) / rd_t_s);
+
+
  				 
 }
 
@@ -296,12 +302,6 @@ int main(void)
   /* USER CODE BEGIN 1 */
 	float cost_ms;
   /* USER CODE END 1 */
-
-  /* Enable I-Cache---------------------------------------------------------*/
-  //SCB_EnableICache();
-
-  /* Enable D-Cache---------------------------------------------------------*/
-  //SCB_EnableDCache();
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -328,9 +328,9 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
-  uint32_t sysClk =  HAL_RCC_GetSysClockFreq();
+  float sysClk =  HAL_RCC_GetSysClockFreq();
 	printf("STM32H750 .....\r\n");
-  printf("CPU Clock Freq.: %dMHz\r\n", sysClk / 1000000);
+  printf("CPU Clock Freq.: %.2fMHz\r\n", sysClk / 1000000);
 	
 	DWT_ENABLE();
   /* USER CODE END 2 */
@@ -340,9 +340,9 @@ int main(void)
   while (1)
   {
 
-		//fmc_sdram_test();
+		fmc_sdram_test();
 		//WriteSpeedTest();
-		dmaTest();
+		//dmaTest();
 
 		
 		//HAL_Delay(1000);
@@ -369,12 +369,9 @@ void SystemClock_Config(void)
   HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY);
   /** Configure the main internal regulator output voltage
   */
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
   while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
-  /** Macro to configure the PLL clock source
-  */
-  __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
@@ -382,12 +379,12 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 10;
-  RCC_OscInitStruct.PLL.PLLN = 384;
+  RCC_OscInitStruct.PLL.PLLM = 5;
+  RCC_OscInitStruct.PLL.PLLN = 160;
   RCC_OscInitStruct.PLL.PLLP = 2;
   RCC_OscInitStruct.PLL.PLLQ = 4;
   RCC_OscInitStruct.PLL.PLLR = 2;
-  RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_1;
+  RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_2;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
   RCC_OscInitStruct.PLL.PLLFRACN = 0;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
@@ -407,7 +404,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }

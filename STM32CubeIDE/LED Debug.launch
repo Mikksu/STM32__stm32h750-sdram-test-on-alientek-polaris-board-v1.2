@@ -27,7 +27,7 @@
     <booleanAttribute key="com.st.stm32cube.ide.mcu.debug.stlink.enable_shared_stlink" value="false"/>
     <stringAttribute key="com.st.stm32cube.ide.mcu.debug.stlink.external_loader" value=""/>
     <booleanAttribute key="com.st.stm32cube.ide.mcu.debug.stlink.external_loader_init" value="false"/>
-    <stringAttribute key="com.st.stm32cube.ide.mcu.debug.stlink.frequency" value="21000"/>
+    <stringAttribute key="com.st.stm32cube.ide.mcu.debug.stlink.frequency" value="24000"/>
     <booleanAttribute key="com.st.stm32cube.ide.mcu.debug.stlink.halt_all_on_reset" value="false"/>
     <stringAttribute key="com.st.stm32cube.ide.mcu.debug.stlink.log_file" value="C:\Users\Mikk\Desktop\h750_demos\led\LED\STM32CubeIDE\Debug\st-link_gdbserver_log.txt"/>
     <stringAttribute key="com.st.stm32cube.ide.mcu.debug.stlink.low_power_debug" value="enable"/>
@@ -68,6 +68,6 @@
     <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
         <listEntry value="4"/>
     </listAttribute>
-    <stringAttribute key="org.eclipse.dsf.launch.MEMORY_BLOCKS" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;memoryBlockExpressionList context=&quot;reserved-for-future-use&quot;&gt;&#13;&#10;    &lt;gdbmemoryBlockExpression address=&quot;603979808&quot; label=&quot;0x24000020&quot;/&gt;&#13;&#10;    &lt;gdbmemoryBlockExpression address=&quot;3221225472&quot; label=&quot;0xC0000000&quot;/&gt;&#13;&#10;    &lt;gdbmemoryBlockExpression address=&quot;3221291007&quot; label=&quot;0xC000FFFF&quot;/&gt;&#13;&#10;    &lt;gdbmemoryBlockExpression address=&quot;604045344&quot; label=&quot;0x24010020&quot;/&gt;&#13;&#10;&lt;/memoryBlockExpressionList&gt;&#13;&#10;"/>
+    <stringAttribute key="org.eclipse.dsf.launch.MEMORY_BLOCKS" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;memoryBlockExpressionList context=&quot;reserved-for-future-use&quot;&gt;&#13;&#10;    &lt;gdbmemoryBlockExpression address=&quot;603979808&quot; label=&quot;0x24000020&quot;/&gt;&#13;&#10;    &lt;gdbmemoryBlockExpression address=&quot;3221225472&quot; label=&quot;0xC0000000&quot;/&gt;&#13;&#10;    &lt;gdbmemoryBlockExpression address=&quot;3221291007&quot; label=&quot;0xC000FFFF&quot;/&gt;&#13;&#10;    &lt;gdbmemoryBlockExpression address=&quot;3288334336&quot; label=&quot;0xc4000000&quot;/&gt;&#13;&#10;&lt;/memoryBlockExpressionList&gt;&#13;&#10;"/>
     <stringAttribute key="process_factory_id" value="org.eclipse.cdt.dsf.gdb.GdbProcessFactory"/>
 </launchConfiguration>

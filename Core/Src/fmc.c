@@ -36,13 +36,13 @@
 #define SDRAM_MODEREG_WRITEBURST_MODE_SINGLE     	((uint16_t)0x0200)
 
 
-//向SDRAM发�?�命�???
-//bankx:0,向BANK5上面的SDRAM发�?�指�???
-//      1,向BANK6上面的SDRAM发�?�指�???
-//cmd:指令(0,正常模式/1,时钟配置使能/2,预充电所有存储区/3,自动刷新/4,加载模式寄存�???/5,自刷�???/6,掉电)
-//refresh:自刷新次�???
+//向SDRAM发�?�命�??????
+//bankx:0,向BANK5上面的SDRAM发�?�指�??????
+//      1,向BANK6上面的SDRAM发�?�指�??????
+//cmd:指令(0,正常模式/1,时钟配置使能/2,预充电所有存储区/3,自动刷新/4,加载模式寄存�??????/5,自刷�??????/6,掉电)
+//refresh:自刷新次�??????
 //regval:模式寄存器的定义
-//返回�???:0,正常;1,失败.
+//返回�??????:0,正常;1,失败.
 uint8_t SDRAM_Send_Cmd(SDRAM_HandleTypeDef* hsdram, uint8_t bankx, uint8_t cmd, uint8_t refresh, uint16_t regval)
 {
     uint32_t target_bank=0;
@@ -55,9 +55,9 @@ uint8_t SDRAM_Send_Cmd(SDRAM_HandleTypeDef* hsdram, uint8_t bankx, uint8_t cmd, 
     
 		command.CommandMode = cmd;                //命令
     command.CommandTarget = target_bank;      //目标SDRAM存储区域
-    command.AutoRefreshNumber = refresh;      //自刷新次�???
+    command.AutoRefreshNumber = refresh;      //自刷新次�??????
     command.ModeRegisterDefinition = regval;  //要写入模式寄存器的�??
-    if(HAL_SDRAM_SendCommand(hsdram, &command, 0XFFFF) == HAL_OK) //向SDRAM发�?�命�???
+    if(HAL_SDRAM_SendCommand(hsdram, &command, 0XFFFF) == HAL_OK) //向SDRAM发�?�命�??????
     {
         return 0;  
     }
@@ -66,34 +66,34 @@ uint8_t SDRAM_Send_Cmd(SDRAM_HandleTypeDef* hsdram, uint8_t bankx, uint8_t cmd, 
 
 
 
-//发�?�SDRAM初始化序�???
+//发�?�SDRAM初始化序�??????
 void SDRAM_Initialization_Sequence(SDRAM_HandleTypeDef *hsdram)
 {
 	uint32_t temp=0;
 
 	//SDRAM控制器初始化完成以后还需要按照如下顺序初始化SDRAM
 	SDRAM_Send_Cmd(hsdram, 0, FMC_SDRAM_CMD_CLK_ENABLE, 1, 0); //时钟配置使能
-	HAL_Delay(1);                                  //至少延时200us
-	SDRAM_Send_Cmd(hsdram, 0, FMC_SDRAM_CMD_PALL, 1, 0);       //对所有存储区预充�???
-	SDRAM_Send_Cmd(hsdram, 0, FMC_SDRAM_CMD_AUTOREFRESH_MODE, 8, 0);//设置自刷新次�??? 
+	HAL_Delay(500);                                  //至少延时200us
+	SDRAM_Send_Cmd(hsdram, 0, FMC_SDRAM_CMD_PALL, 1, 0);       //对所有存储区预充�??????
+	SDRAM_Send_Cmd(hsdram, 0, FMC_SDRAM_CMD_AUTOREFRESH_MODE, 8, 0);//设置自刷新次�?????? 
 	
-	//配置模式寄存�???,SDRAM的bit0~bit2为指定突发访问的长度�???
-	//bit3为指定突发访问的类型，bit4~bit6为CAS值，bit7和bit8为运行模�???
+	//配置模式寄存�??????,SDRAM的bit0~bit2为指定突发访问的长度�??????
+	//bit3为指定突发访问的类型，bit4~bit6为CAS值，bit7和bit8为运行模�??????
 	//bit9为指定的写突发模式，bit10和bit11位保留位
-	temp = (uint32_t)SDRAM_MODEREG_BURST_LENGTH_4           |					//设置突发长度:1(可以�???1/2/4/8)
-						        SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL   |					//设置突发类型:连续(可以是连�???/交错)
-						        SDRAM_MODEREG_CAS_LATENCY_2           |					//设置CAS�???:2(可以�???2/3)
+	temp = (uint32_t)SDRAM_MODEREG_BURST_LENGTH_4           |					//设置突发长度:1(可以�??????1/2/4/8)
+						        SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL   |					//设置突发类型:连续(可以是连�??????/交错)
+						        SDRAM_MODEREG_CAS_LATENCY_2           |					//设置CAS�??????:2(可以�??????2/3)
 						        SDRAM_MODEREG_OPERATING_MODE_STANDARD |   			//设置操作模式:0,标准模式
-						        SDRAM_MODEREG_WRITEBURST_MODE_SINGLE;     			//设置突发写模�???:1,单点访问
+						        SDRAM_MODEREG_WRITEBURST_MODE_SINGLE;     			//设置突发写模�??????:1,单点访问
             
   //设置SDRAM的模式寄存器
 	SDRAM_Send_Cmd(hsdram, 0, FMC_SDRAM_CMD_LOAD_MODE, 1, temp);   
     
-  //刷新频率计数�???(以SDCLK频率计数),计算方法:
+  //刷新频率计数�??????(以SDCLK频率计数),计算方法:
 	//COUNT=SDRAM刷新周期/行数-20 = SDRAM刷新周期(us)*SDCLK频率(Mhz)/行数
-  //我们使用的SDRAM刷新周期�???64ms, SDCLK = 200/2=100Mhz,行数�???8192(2^13).
-	//�???�???,COUNT=64*1000*100/8192-20=677
-	HAL_SDRAM_ProgramRefreshRate(hsdram, 1152);	
+  //我们使用的SDRAM刷新周期�??????64ms, SDCLK = 200/2=100Mhz,行数�??????8192(2^13).
+	//�??????�??????,COUNT=64*1000*100/8192-20=677
+	HAL_SDRAM_ProgramRefreshRate(hsdram, 677);
 }	
 /* USER CODE END 0 */
 
@@ -121,17 +121,17 @@ void MX_FMC_Init(void)
   hsdram1.Init.RowBitsNumber = FMC_SDRAM_ROW_BITS_NUM_13;
   hsdram1.Init.MemoryDataWidth = FMC_SDRAM_MEM_BUS_WIDTH_32;
   hsdram1.Init.InternalBankNumber = FMC_SDRAM_INTERN_BANKS_NUM_4;
-  hsdram1.Init.CASLatency = FMC_SDRAM_CAS_LATENCY_3;
+  hsdram1.Init.CASLatency = FMC_SDRAM_CAS_LATENCY_2;
   hsdram1.Init.WriteProtection = FMC_SDRAM_WRITE_PROTECTION_DISABLE;
   hsdram1.Init.SDClockPeriod = FMC_SDRAM_CLOCK_PERIOD_2;
   hsdram1.Init.ReadBurst = FMC_SDRAM_RBURST_ENABLE;
   hsdram1.Init.ReadPipeDelay = FMC_SDRAM_RPIPE_DELAY_0;
   /* SdramTiming */
   SdramTiming.LoadToActiveDelay = 2;
-  SdramTiming.ExitSelfRefreshDelay = 9;
-  SdramTiming.SelfRefreshTime = 8;
+  SdramTiming.ExitSelfRefreshDelay = 8;
+  SdramTiming.SelfRefreshTime = 6;
   SdramTiming.RowCycleDelay = 6;
-  SdramTiming.WriteRecoveryTime = 6;
+  SdramTiming.WriteRecoveryTime = 2;
   SdramTiming.RPDelay = 2;
   SdramTiming.RCDDelay = 2;
 
@@ -161,14 +161,7 @@ static void HAL_FMC_MspInit(void){
   /** Initializes the peripherals clock
   */
     PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_FMC;
-    PeriphClkInitStruct.PLL2.PLL2M = 20;
-    PeriphClkInitStruct.PLL2.PLL2N = 400;
-    PeriphClkInitStruct.PLL2.PLL2P = 2;
-    PeriphClkInitStruct.PLL2.PLL2Q = 2;
-    PeriphClkInitStruct.PLL2.PLL2R = 2;
-    PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_0;
-    PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
-    PeriphClkInitStruct.FmcClockSelection = RCC_FMCCLKSOURCE_PLL2;
+    PeriphClkInitStruct.FmcClockSelection = RCC_FMCCLKSOURCE_D1HCLK;
     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
     {
       Error_Handler();
