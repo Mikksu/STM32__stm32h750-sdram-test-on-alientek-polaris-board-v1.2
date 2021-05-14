@@ -82,7 +82,7 @@ static void fillSdram(void)
 }
 
 
-#define SRAM_WD_BLOCK_SIZE           (16 * 1024)
+#define SRAM_WD_BLOCK_SIZE            64//(16 * 1024)
 #define SRAM_TOTAL_PAGE               (SDRAM_TOTAL_UNIT / SRAM_WD_BLOCK_SIZE)
 
 static uint32_t sramBuff[SRAM_WD_BLOCK_SIZE];
@@ -100,10 +100,10 @@ static void dmaTest(void)
   {
     for(i = 0; i < SRAM_WD_BLOCK_SIZE; i++)
     {
-      sramBuff[i] = (page * SRAM_WD_BLOCK_SIZE) + i;
+      sramBuff[i] = 0xA244250F;//(page * SRAM_WD_BLOCK_SIZE) + i;
     }
 
-    status = HAL_DMA_Start(&hdma_memtomem_dma1_stream0, (uint32_t)(sramBuff), Bank5_SDRAM_ADDR + (SRAM_WD_BLOCK_SIZE * page * 4) + 4, (SRAM_WD_BLOCK_SIZE * 4) - 1);
+    status = HAL_DMA_Start(&hdma_memtomem_dma1_stream0, (uint32_t)(sramBuff), Bank5_SDRAM_ADDR, 1);
     status = HAL_DMA_PollForTransfer(&hdma_memtomem_dma1_stream0, HAL_DMA_FULL_TRANSFER, HAL_MAX_DELAY);
 
     //status = HAL_MDMA_Start(&hmdma_mdma_channel40_sw_0, (uint32_t)sramBuff, Bank5_SDRAM_ADDR, 128, 1);
