@@ -61,7 +61,7 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 //uint32_t testsram[250000] __attribute__((section(".ARM.__at_0XC0000000")));
-static uint32_t * const testsram = (uint32_t *) (Bank5_SDRAM_ADDR);
+//static uint32_t * const testsram = (uint32_t *) (Bank5_SDRAM_ADDR);
 
 
 #define SDRAM_1M            (1024 * 1024)
@@ -85,138 +85,84 @@ static void fillSdram(void)
 }
 
 
-#define SRAM_WD_BLOCK_SIZE            64//(16 * 1024)
-#define SRAM_TOTAL_PAGE               (SDRAM_TOTAL_UNIT / SRAM_WD_BLOCK_SIZE)
+#define SRAM_PAGE_SIZE                (32 * 1024)
+#define SRAM_TOTAL_PAGES              (SDRAM_TOTAL_UNIT / SRAM_PAGE_SIZE)
 
-static uint32_t sramBuff[SRAM_WD_BLOCK_SIZE];
+static uint32_t sramBuff[SRAM_PAGE_SIZE];
 
 
 static void dmaTest(void)
 {
   int i = 0, page = 0;
+  int succeed = 1;
+  float wr_cost;
   HAL_StatusTypeDef status;
+
+  float sysClk = HAL_RCC_GetSysClockFreq();
 
   // fill the whole SDRAM with pattern 0x5A5A5A5A.
   fillSdram();
 
-  uint8_t *p;
-  for(page = 0; page < SRAM_TOTAL_PAGE; page++)
-  {
-    for(i = 0; i < SRAM_WD_BLOCK_SIZE; i++)
-    {
-      p = (uint8_t*)&sramBuff[i];
+  printf("Page size: %d Words\r\n", SRAM_PAGE_SIZE);
+  printf("Total Pages: %d \r\n", SRAM_TOTAL_PAGES);
 
-      *p++ = i * 4;
-      *p++ = i * 4 + 1;
-      *p++ = i * 4 + 2;
-      *p++ = i * 4 + 3;
-      //sramBuff[i] =  + i;//(page * SRAM_WD_BLOCK_SIZE) + i;
+  htim2.Instance->CNT = 0;
+  HAL_TIM_Base_Start(&htim2);
+
+  for(page = 0; page < SRAM_TOTAL_PAGES; page++)
+  {
+    for(i = 0; i < SRAM_PAGE_SIZE; i++)
+    {
+      sramBuff[i] =  (page * SRAM_PAGE_SIZE) + i;
     }
 
+    //printf("Transferring the page %d...\r\n", page);
 
-    uint32_t* p32 = Bank5_SDRAM_ADDR;
-    *p32 = 0xA244250F;
-    *p32 = 0xA244250F;
-    *p32 = 0xA244250F;
-    *p32 = 0xA244250F;
-    *p32 = 0xA244250F;
-    *p32 = 0xA244250F;
-    *p32 = 0xA244250F;
+    uint32_t destAddr = Bank5_SDRAM_ADDR + (page * SRAM_PAGE_SIZE * 4);
 
-    status = HAL_DMA_Start(&hdma_memtomem_dma1_stream0, (uint32_t)(sramBuff), Bank5_SDRAM_ADDR, 16);
+    status = HAL_DMA_Start(&hdma_memtomem_dma1_stream0, (uint32_t)(sramBuff), destAddr, SRAM_PAGE_SIZE);
     status = HAL_DMA_PollForTransfer(&hdma_memtomem_dma1_stream0, HAL_DMA_FULL_TRANSFER, HAL_MAX_DELAY);
 
     //status = HAL_MDMA_Start(&hmdma_mdma_channel40_sw_0, (uint32_t)sramBuff, Bank5_SDRAM_ADDR, 128, 1);
     //status = HAL_MDMA_PollForTransfer(&hmdma_mdma_channel40_sw_0, HAL_MDMA_FULL_TRANSFER, HAL_MAX_DELAY);
-    if(status == HAL_OK)
-      printf("DMA Transfer to SDRAM finished!\r\n");
-    else
-      printf("DMA Transfer to SDRAM failed!\r\n");
+    if(status != HAL_OK)
+    {
+      succeed = 0;
+      printf("DMA Transfer to SDRAM failed at page %d!\r\n", page);
+      break;
+    }
 
   }
 
+  htim2.Instance->CR1 &= 0;
+  HAL_TIM_Base_Stop(&htim2);
+  wr_cost = (float)htim2.Instance->CNT;
+
+  float wr_t_s =  wr_cost * (1 / sysClk * 2);
+  printf("WRITE cost: %.3fms; speed: %.1f MB/s\r\n", wr_t_s * 1000, (float)(SDRAM_TOTAL_UNIT * 4 / SDRAM_1M) / wr_t_s);
+
+
+
   // validate the data in the SDRAM
-  if(status == HAL_OK)
+  if(succeed)
   {
     uint32_t *p = (uint32_t*)Bank5_SDRAM_ADDR;
     uint32_t temp;
 
-    for(i = 0; i < SRAM_WD_BLOCK_SIZE; i++)
+    for(i = 0; i < SDRAM_M_UNIT; i++)
     {
       temp = *p++;
       if(temp != i)
         break;
     }
 
-    if(i != SRAM_WD_BLOCK_SIZE - 1)
+    if(i != SRAM_PAGE_SIZE - 1)
       printf("Data error in position %d\r\n", i);
     else
       printf("Data validation passed\r\n");
   }
-}
 
-static void WriteSpeedTest(void)
-{
-	uint32_t i, j;
-	uint32_t *pBuf;
-
-
-	/* ���ó�ʼ��ֵ�����¿�ʼʱ�� */
-	j = 0;
-	pBuf = (uint32_t *)Bank5_SDRAM_ADDR;
-
-	
-	/* �Ե����ķ�ʽд���ݵ�SDRAM���пռ� */
-	for (i = 1024*1024/4; i >0 ; i--)
-	{
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;	
-
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;	
-
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;	
-
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;
-		*pBuf++ = j++;	
-	}
-	
-
-	j = 0;
-	pBuf = (uint32_t *)Bank5_SDRAM_ADDR;
-	for (i = 0; i < 1024*1024*8; i++)
-	{
-		if(*pBuf++ != j++)
-		{
-			printf("Failed to write data to the SDRAM j=%d\r\n", j);
-			break;
-		}
-	}
+  HAL_Delay(1000);
 }
 
 /**
@@ -288,7 +234,7 @@ void fmc_sdram_test(void)
   }
   else
   {
-    printf("Reading Error at position %d!\r\n", i);
+    printf("Reading Error at position %d!\r\n", (int)i);
   }
 
 
@@ -313,7 +259,7 @@ void fmc_sdram_test(void)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	float cost_ms;
+
   /* USER CODE END 1 */
 
   /* Enable I-Cache---------------------------------------------------------*/
@@ -351,7 +297,6 @@ int main(void)
 	printf("STM32H750 .....\r\n");
   printf("CPU Clock Freq.: %.2fMHz\r\n", sysClk / 1000000);
 	
-	DWT_ENABLE();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -360,8 +305,7 @@ int main(void)
   {
 
 		fmc_sdram_test();
-		//WriteSpeedTest();
-		//dmaTest();
+    //dmaTest();
 
 		
 		//HAL_Delay(1000);
